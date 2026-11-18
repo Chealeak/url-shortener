@@ -1,0 +1,12 @@
+all: false
+dir: "{{.InterfaceDir}}/mocks"
+filename: "{{.InterfaceName}}.go"
+force-file-write: true
+formatter: goimports
+pkgname: mocks
+structname: "{{.InterfaceName}}"
+template: testify
+packages:
+  url-shortener/internal/http-server/handlers/url/save:
+    interfaces:
+      URLSaver:
