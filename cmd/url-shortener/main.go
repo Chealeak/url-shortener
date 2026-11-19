@@ -10,7 +10,7 @@ import (
 	"url-shortener/internal/http-server/handlers/url/save"
 	mwLogger "url-shortener/internal/http-server/middleware/logger"
 	"url-shortener/internal/lib/logger/sl"
-	"url-shortener/internal/storage/sqlite"
+	"url-shortener/internal/storage/postgres"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -30,11 +30,12 @@ func main() {
 	log.Info("starting the program...", slog.String("env", config.Env))
 	log.Debug("debug messages are enabled")
 
-	storage, err := sqlite.New(config.StoragePath)
+	storage, err := postgres.New(config.DatabaseUrl)
 	if err != nil {
 		log.Error("failed to init storage", sl.Err(err))
 		os.Exit(1)
 	}
+	defer storage.Close()
 
 	router := chi.NewRouter()
 	router.Use(middleware.RequestID)
