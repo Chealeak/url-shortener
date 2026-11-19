@@ -8,6 +8,7 @@ import (
 	"url-shortener/internal/http-server/handlers/redirect"
 	"url-shortener/internal/http-server/handlers/url/delete"
 	"url-shortener/internal/http-server/handlers/url/save"
+	"url-shortener/internal/http-server/handlers/url/update"
 	mwLogger "url-shortener/internal/http-server/middleware/logger"
 	"url-shortener/internal/lib/logger/sl"
 	"url-shortener/internal/storage/postgres"
@@ -27,12 +28,12 @@ func main() {
 
 	log := setupLogger(config.Env)
 
-	log.Info("starting the program...", slog.String("env", config.Env))
-	log.Debug("debug messages are enabled")
+	log.Info("Starting the program...", slog.String("env", config.Env))
+	log.Debug("Debug messages are enabled")
 
 	storage, err := postgres.New(config.DatabaseUrl)
 	if err != nil {
-		log.Error("failed to init storage", sl.Err(err))
+		log.Error("Failed to init storage", sl.Err(err))
 		os.Exit(1)
 	}
 	defer storage.Close()
@@ -50,12 +51,13 @@ func main() {
 		}))
 
 		r.Post("/", save.New(log, storage))
+		r.Put("/", update.New(log, storage))
 		r.Delete("/{alias}", delete.New(log, storage))
 	})
 
 	router.Get("/{alias}", redirect.New(log, storage))
 
-	log.Info("starting server", slog.String("address", config.Address))
+	log.Info("Starting server", slog.String("address", config.Address))
 
 	server := &http.Server{
 		Addr:         config.Address,
@@ -66,10 +68,10 @@ func main() {
 	}
 
 	if err := server.ListenAndServe(); err != nil {
-		log.Error("failed to start server")
+		log.Error("Failed to start server")
 	}
 
-	log.Info("server stopped")
+	log.Info("Server stopped")
 }
 
 func setupLogger(env string) *slog.Logger {

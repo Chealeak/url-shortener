@@ -14,11 +14,11 @@ import (
 )
 
 //go:generate go run github.com/vektra/mockery/v3@v3.9.1
-type URLGetter interface {
-	GetURL(alias string) (string, error)
+type GetUrl interface {
+	GetUrl(alias string) (string, error)
 }
 
-func New(log *slog.Logger, urlGetter URLGetter) http.HandlerFunc {
+func New(log *slog.Logger, urlGetter GetUrl) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const fn = "handlers.url.redirect.New"
 
@@ -34,8 +34,8 @@ func New(log *slog.Logger, urlGetter URLGetter) http.HandlerFunc {
 			return
 		}
 
-		url, err := urlGetter.GetURL(alias)
-		if errors.Is(err, storage.ErrURLNotFound) {
+		url, err := urlGetter.GetUrl(alias)
+		if errors.Is(err, storage.ErrUrlNotFound) {
 			log.Info("url not found", "alias", alias)
 			render.JSON(w, r, resp.Error("internal error"))
 			return

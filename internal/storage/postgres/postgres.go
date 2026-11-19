@@ -40,7 +40,7 @@ func New(storagePath string) (*Storage, error) {
 	return &Storage{db: db}, nil
 }
 
-func (s *Storage) SaveURL(urlToSave string, alias string) (int64, error) {
+func (s *Storage) SaveUrl(urlToSave string, alias string) (int64, error) {
 	const fn = "storage.postgres.SaveURL"
 
 	var id int64
@@ -60,7 +60,7 @@ func (s *Storage) SaveURL(urlToSave string, alias string) (int64, error) {
 	return id, nil
 }
 
-func (s *Storage) GetURL(alias string) (string, error) {
+func (s *Storage) GetUrl(alias string) (string, error) {
 	const fn = "storage.postgres.GetURL"
 
 	var url string
@@ -80,7 +80,26 @@ func (s *Storage) GetURL(alias string) (string, error) {
 	return url, nil
 }
 
-func (s *Storage) DeleteURL(alias string) (int64, error) {
+func (s *Storage) UpdateUrl(alias string, newUrl string) (int64, error) {
+	const fn = "storage.postgres.UpdateURL"
+
+	result, err := s.db.Exec(
+		context.Background(),
+		"UPDATE url SET alias = $1 WHERE alias = $2",
+		newUrl,
+		alias,
+	)
+
+	if err != nil {
+		return 0, fmt.Errorf("%s: execute statement %w", fn, err)
+	}
+
+	rowsAffected := result.RowsAffected()
+
+	return rowsAffected, nil
+}
+
+func (s *Storage) DeleteUrl(alias string) (int64, error) {
 	const fn = "storage.postgres.DeleteURL"
 
 	result, err := s.db.Exec(
