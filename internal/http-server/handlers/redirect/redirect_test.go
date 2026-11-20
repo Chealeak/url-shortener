@@ -1,54 +1,64 @@
 package redirect_test
 
 import (
+	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	"url-shortener/internal/http-server/handlers/redirect"
 	"url-shortener/internal/http-server/handlers/redirect/mocks"
 	"url-shortener/internal/lib/api"
+	"url-shortener/internal/lib/api/response"
 	"url-shortener/internal/lib/logger/handlers/slogdiscard"
+	"url-shortener/internal/service"
 )
 
-func TestSaveHandler(t *testing.T) {
-	cases := []struct {
-		name      string
-		alias     string
-		url       string
-		respError string
-		mockError error
-	}{
-		{
-			name:  "Success",
-			alias: "test_alias",
-			url:   "https://www.google.com/",
-		},
-	}
+func TestRedirect_Success(t *testing.T) {
+	urlGetterMock := mocks.NewGetUrl(t)
+	urlGetterMock.On("GetUrl", mock.Anything, "test_alias").
+		Return("https://www.google.com/", nil).
+		Once()
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			urlGetterMock := mocks.NewGetUrl(t)
+	router := chi.NewRouter()
+	router.Get("/{alias}", redirect.New(slogdiscard.NewDiscardLogger(), urlGetterMock))
 
-			if tc.respError == "" || tc.mockError != nil {
-				urlGetterMock.On("GetUrl", mock.Anything, tc.alias).
-					Return(tc.url, tc.mockError).Once()
-			}
+	server := httptest.NewServer(router)
+	t.Cleanup(server.Close)
 
-			r := chi.NewRouter()
-			r.Get("/{alias}", redirect.New(slogdiscard.NewDiscardLogger(), urlGetterMock))
+	redirectedToURL, err := api.GetRedirect(server.URL + "/test_alias")
+	require.NoError(t, err)
+	require.Equal(t, "https://www.google.com/", redirectedToURL)
+}
 
-			ts := httptest.NewServer(r)
-			defer ts.Close()
+func TestRedirect_NotFound(t *testing.T) {
+	urlGetterMock := mocks.NewGetUrl(t)
+	urlGetterMock.On("GetUrl", mock.Anything, "missing").
+		Return("", service.ErrURLNotFound).
+		Once()
 
-			redirectedToURL, err := api.GetRedirect(ts.URL + "/" + tc.alias)
-			require.NoError(t, err)
+	rr := callRedirect(t, urlGetterMock, "/missing")
 
-			assert.Equal(t, tc.url, redirectedToURL)
-		})
-	}
+	require.Equal(t, http.StatusNotFound, rr.Code)
+
+	var resp response.Response
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+	require.Equal(t, "URL not found", resp.Error)
+}
+
+func callRedirect(t *testing.T, getter redirect.GetUrl, target string) *httptest.ResponseRecorder {
+	t.Helper()
+
+	router := chi.NewRouter()
+	router.Get("/{alias}", redirect.New(slogdiscard.NewDiscardLogger(), getter))
+
+	req := httptest.NewRequest(http.MethodGet, target, nil)
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	return rr
 }

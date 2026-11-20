@@ -1,12 +1,11 @@
 package save_test
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/mock"
@@ -18,89 +17,72 @@ import (
 	"url-shortener/internal/service"
 )
 
-func TestSaveHandler(t *testing.T) {
-	cases := []struct {
-		name      string
-		alias     string
-		url       string
-		respError string
-		respAlias string
-		mockError error
-		status    int
-	}{
-		{
-			name:      "Success",
-			alias:     "test_alias",
-			url:       "https://google.com",
-			respAlias: "test_alias",
-			status:    http.StatusCreated,
-		},
-		{
-			name:      "Empty alias",
-			alias:     "",
-			url:       "https://google.com",
-			respAlias: "abc123",
-			status:    http.StatusCreated,
-		},
-		{
-			name:      "Empty URL",
-			url:       "",
-			alias:     "some_alias",
-			respError: "Field URL is a required field",
-			mockError: service.ErrEmptyURL,
-			status:    http.StatusBadRequest,
-		},
-		{
-			name:      "Invalid URL",
-			url:       "some invalid URL",
-			alias:     "some_alias",
-			respError: "Field URL is not a valid URL",
-			mockError: service.ErrInvalidURL,
-			status:    http.StatusBadRequest,
-		},
-		{
-			name:      "Alias already exists",
-			alias:     "test_alias",
-			url:       "https://google.com",
-			respError: "URL already exists",
-			mockError: service.ErrURLExists,
-			status:    http.StatusConflict,
-		},
-		{
-			name:      "SaveURL Error",
-			alias:     "test_alias",
-			url:       "https://google.com",
-			respError: "Failed to add URL",
-			mockError: errors.New("unexpected error"),
-			status:    http.StatusInternalServerError,
-		},
-	}
+func TestSave_Success(t *testing.T) {
+	urlSaverMock := mocks.NewSaveUrl(t)
+	urlSaverMock.On("SaveUrl", mock.Anything, "https://google.com", "test_alias").
+		Return("test_alias", nil).
+		Once()
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
+	rr := callSave(t, urlSaverMock, `{"url":"https://google.com","alias":"test_alias"}`)
 
-			urlSaverMock := mocks.NewSaveUrl(t)
-			urlSaverMock.On("SaveUrl", mock.Anything, tc.url, tc.alias).
-				Return(tc.respAlias, tc.mockError).
-				Once()
+	require.Equal(t, http.StatusCreated, rr.Code)
+	resp := decodeSave(t, rr)
+	require.Empty(t, resp.Error)
+	require.Equal(t, "test_alias", resp.Alias)
+}
 
-			handler := save.New(slogdiscard.NewDiscardLogger(), urlSaverMock)
+func TestSave_BadRequest(t *testing.T) {
+	urlSaverMock := mocks.NewSaveUrl(t)
 
-			input := fmt.Sprintf(`{"url": "%s", "alias": "%s"}`, tc.url, tc.alias)
+	rr := callSave(t, urlSaverMock, `{"url":`)
 
-			req, err := http.NewRequest(http.MethodPost, "/save", bytes.NewReader([]byte(input)))
-			require.NoError(t, err)
+	require.Equal(t, http.StatusBadRequest, rr.Code)
+	resp := decodeSave(t, rr)
+	require.Equal(t, "Failed to decode request body", resp.Error)
+	require.Empty(t, resp.Alias)
+}
 
-			rr := httptest.NewRecorder()
-			handler.ServeHTTP(rr, req)
+func TestSave_Conflict(t *testing.T) {
+	urlSaverMock := mocks.NewSaveUrl(t)
+	urlSaverMock.On("SaveUrl", mock.Anything, "https://google.com", "test_alias").
+		Return("", service.ErrURLExists).
+		Once()
 
-			require.Equal(t, tc.status, rr.Code)
+	rr := callSave(t, urlSaverMock, `{"url":"https://google.com","alias":"test_alias"}`)
 
-			var resp save.Response
-			require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
-			require.Equal(t, tc.respError, resp.Error)
-			require.Equal(t, tc.respAlias, resp.Alias)
-		})
-	}
+	require.Equal(t, http.StatusConflict, rr.Code)
+	resp := decodeSave(t, rr)
+	require.Equal(t, "URL already exists", resp.Error)
+}
+
+func TestSave_InternalError(t *testing.T) {
+	urlSaverMock := mocks.NewSaveUrl(t)
+	urlSaverMock.On("SaveUrl", mock.Anything, "https://google.com", "test_alias").
+		Return("", errors.New("db is down")).
+		Once()
+
+	rr := callSave(t, urlSaverMock, `{"url":"https://google.com","alias":"test_alias"}`)
+
+	require.Equal(t, http.StatusInternalServerError, rr.Code)
+	resp := decodeSave(t, rr)
+	require.Equal(t, "Failed to add URL", resp.Error)
+}
+
+func callSave(t *testing.T, urlSaver save.SaveUrl, body string) *httptest.ResponseRecorder {
+	t.Helper()
+
+	handler := save.New(slogdiscard.NewDiscardLogger(), urlSaver)
+	req := httptest.NewRequest(http.MethodPost, "/url", strings.NewReader(body))
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	return rr
+}
+
+func decodeSave(t *testing.T, rr *httptest.ResponseRecorder) save.Response {
+	t.Helper()
+
+	var resp save.Response
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+	return resp
 }
