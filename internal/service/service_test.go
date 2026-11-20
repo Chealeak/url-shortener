@@ -126,7 +126,7 @@ func TestUpdateUrl(t *testing.T) {
 			alias:      "missing",
 			url:        "https://google.com",
 			storageErr: []error{fmt.Errorf("update: %w", storage.ErrUrlNotFound)},
-			wantErr:    service.ErrURLNotFound,
+			wantErr:    service.ErrAliasNotFound,
 			wantCalls:  1,
 		},
 	}
@@ -179,7 +179,7 @@ func TestGetUrl(t *testing.T) {
 			name:       "alias not found",
 			alias:      "missing",
 			storageErr: []error{fmt.Errorf("select: %w", storage.ErrUrlNotFound)},
-			wantErr:    service.ErrURLNotFound,
+			wantErr:    service.ErrAliasNotFound,
 			wantCalls:  1,
 		},
 	}
@@ -232,7 +232,7 @@ func TestDeleteUrl(t *testing.T) {
 			name:       "alias not found",
 			alias:      "missing",
 			storageErr: []error{fmt.Errorf("delete: %w", storage.ErrUrlNotFound)},
-			wantErr:    service.ErrURLNotFound,
+			wantErr:    service.ErrAliasNotFound,
 			wantCalls:  1,
 		},
 	}

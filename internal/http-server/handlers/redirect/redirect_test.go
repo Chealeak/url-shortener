@@ -38,7 +38,7 @@ func TestRedirect_Success(t *testing.T) {
 func TestRedirect_NotFound(t *testing.T) {
 	urlGetterMock := mocks.NewGetUrl(t)
 	urlGetterMock.On("GetUrl", mock.Anything, "missing").
-		Return("", service.ErrURLNotFound).
+		Return("", service.ErrAliasNotFound).
 		Once()
 
 	rr := callRedirect(t, urlGetterMock, "/missing")
@@ -47,7 +47,7 @@ func TestRedirect_NotFound(t *testing.T) {
 
 	var resp response.Response
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
-	require.Equal(t, "URL not found", resp.Error)
+	require.Equal(t, "Alias not found", resp.Error)
 }
 
 func callRedirect(t *testing.T, getter redirect.GetUrl, target string) *httptest.ResponseRecorder {

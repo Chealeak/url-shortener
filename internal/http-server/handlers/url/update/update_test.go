@@ -55,7 +55,7 @@ func TestUpdate_BadRequest(t *testing.T) {
 }
 
 func TestUpdate_NotFound(t *testing.T) {
-	stub := &updateStub{err: service.ErrURLNotFound}
+	stub := &updateStub{err: service.ErrAliasNotFound}
 
 	rr := callUpdate(t, stub, `{"alias":"missing","url":"https://google.com"}`)
 
@@ -63,7 +63,7 @@ func TestUpdate_NotFound(t *testing.T) {
 
 	var resp update.Response
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
-	require.Equal(t, "URL not found", resp.Error)
+	require.Equal(t, "Alias not found", resp.Error)
 }
 
 func TestUpdate_InternalError(t *testing.T) {

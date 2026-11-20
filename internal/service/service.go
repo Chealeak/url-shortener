@@ -20,7 +20,7 @@ var (
 	ErrEmptyAlias  = errors.New("empty alias")
 	ErrInvalidURL  = errors.New("invalid url")
 	ErrURLExists   = errors.New("url exists")
-	ErrURLNotFound = errors.New("url not found")
+	ErrAliasNotFound = errors.New("alias not found")
 )
 
 type Storage interface {
@@ -98,7 +98,7 @@ func (s *Service) UpdateUrl(ctx context.Context, alias string, newUrl string) (i
 	count, err := s.storage.UpdateUrl(ctx, alias, newUrl)
 	if err != nil {
 		if errors.Is(err, storage.ErrUrlNotFound) {
-			return 0, ErrURLNotFound
+			return 0, ErrAliasNotFound
 		}
 		return 0, fmt.Errorf("update url: %w", err)
 	}
@@ -114,7 +114,7 @@ func (s *Service) GetUrl(ctx context.Context, alias string) (string, error) {
 	rawURL, err := s.storage.GetUrl(ctx, alias)
 	if err != nil {
 		if errors.Is(err, storage.ErrUrlNotFound) {
-			return "", ErrURLNotFound
+			return "", ErrAliasNotFound
 		}
 		return "", fmt.Errorf("get url: %w", err)
 	}
@@ -130,7 +130,7 @@ func (s *Service) DeleteUrl(ctx context.Context, alias string) (int64, error) {
 	count, err := s.storage.DeleteUrl(ctx, alias)
 	if err != nil {
 		if errors.Is(err, storage.ErrUrlNotFound) {
-			return 0, ErrURLNotFound
+			return 0, ErrAliasNotFound
 		}
 		return 0, fmt.Errorf("delete url: %w", err)
 	}

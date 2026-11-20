@@ -43,10 +43,10 @@ func New(log *slog.Logger, urlRemover DeleteUrl) http.HandlerFunc {
 				log.Error("Invalid request", sl.Err(err))
 				render.Status(r, http.StatusBadRequest)
 				render.JSON(w, r, resp.Error("Field alias is a required field"))
-			case errors.Is(err, service.ErrURLNotFound):
-				log.Info("URL not found", slog.String("alias", alias))
+			case errors.Is(err, service.ErrAliasNotFound):
+				log.Info("Alias not found", slog.String("alias", alias))
 				render.Status(r, http.StatusNotFound)
-				render.JSON(w, r, resp.Error("URL not found"))
+				render.JSON(w, r, resp.Error("Alias not found"))
 			default:
 				log.Error("Failed to delete URL", slog.String("alias", alias), sl.Err(err))
 				render.Status(r, http.StatusInternalServerError)

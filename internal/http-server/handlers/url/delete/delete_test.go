@@ -45,7 +45,7 @@ func TestDelete_Success(t *testing.T) {
 }
 
 func TestDelete_NotFound(t *testing.T) {
-	stub := &deleteStub{err: service.ErrURLNotFound}
+	stub := &deleteStub{err: service.ErrAliasNotFound}
 
 	rr := callDelete(t, stub, "/missing")
 
@@ -53,7 +53,7 @@ func TestDelete_NotFound(t *testing.T) {
 
 	var resp delete.Response
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
-	require.Equal(t, "URL not found", resp.Error)
+	require.Equal(t, "Alias not found", resp.Error)
 }
 
 func TestDelete_InternalError(t *testing.T) {
