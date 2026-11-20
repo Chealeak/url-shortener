@@ -15,6 +15,7 @@ import (
 	"url-shortener/internal/http-server/handlers/url/save"
 	"url-shortener/internal/http-server/handlers/url/save/mocks"
 	"url-shortener/internal/lib/logger/handlers/slogdiscard"
+	"url-shortener/internal/service"
 )
 
 func TestSaveHandler(t *testing.T) {
@@ -23,29 +24,41 @@ func TestSaveHandler(t *testing.T) {
 		alias     string
 		url       string
 		respError string
+		respAlias string
 		mockError error
 	}{
 		{
-			name:  "Success",
-			alias: "test_alias",
-			url:   "https://google.com",
+			name:      "Success",
+			alias:     "test_alias",
+			url:       "https://google.com",
+			respAlias: "test_alias",
 		},
 		{
-			name:  "Empty alias",
-			alias: "",
-			url:   "https://google.com",
+			name:      "Empty alias",
+			alias:     "",
+			url:       "https://google.com",
+			respAlias: "abc123",
 		},
 		{
 			name:      "Empty URL",
 			url:       "",
 			alias:     "some_alias",
 			respError: "field URL is a required field",
+			mockError: service.ErrEmptyURL,
 		},
 		{
 			name:      "Invalid URL",
 			url:       "some invalid URL",
 			alias:     "some_alias",
 			respError: "field URL is not a valid URL",
+			mockError: service.ErrInvalidURL,
+		},
+		{
+			name:      "Alias already exists",
+			alias:     "test_alias",
+			url:       "https://google.com",
+			respError: "url already exists",
+			mockError: service.ErrURLExists,
 		},
 		{
 			name:      "SaveURL Error",
@@ -61,12 +74,9 @@ func TestSaveHandler(t *testing.T) {
 			t.Parallel()
 
 			urlSaverMock := mocks.NewSaveUrl(t)
-
-			if tc.respError == "" || tc.mockError != nil {
-				urlSaverMock.On("SaveURL", tc.url, mock.AnythingOfType("string")).
-					Return(int64(1), tc.mockError).
-					Once()
-			}
+			urlSaverMock.On("SaveUrl", mock.Anything, tc.url, tc.alias).
+				Return(tc.respAlias, tc.mockError).
+				Once()
 
 			handler := save.New(slogdiscard.NewDiscardLogger(), urlSaverMock)
 
@@ -78,15 +88,12 @@ func TestSaveHandler(t *testing.T) {
 			rr := httptest.NewRecorder()
 			handler.ServeHTTP(rr, req)
 
-			require.Equal(t, rr.Code, http.StatusOK)
-
-			body := rr.Body.String()
+			require.Equal(t, http.StatusOK, rr.Code)
 
 			var resp save.Response
-
-			require.NoError(t, json.Unmarshal([]byte(body), &resp))
-
+			require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
 			require.Equal(t, tc.respError, resp.Error)
+			require.Equal(t, tc.respAlias, resp.Alias)
 		})
 	}
 }

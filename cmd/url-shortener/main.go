@@ -11,6 +11,7 @@ import (
 	"url-shortener/internal/http-server/handlers/url/update"
 	mwLogger "url-shortener/internal/http-server/middleware/logger"
 	"url-shortener/internal/lib/logger/sl"
+	"url-shortener/internal/service"
 	"url-shortener/internal/storage/postgres"
 
 	"github.com/go-chi/chi/v5"
@@ -38,6 +39,8 @@ func main() {
 	}
 	defer storage.Close()
 
+	urlService := service.New(storage)
+
 	router := chi.NewRouter()
 	router.Use(middleware.RequestID)
 	router.Use(middleware.Logger)
@@ -50,7 +53,7 @@ func main() {
 			config.HTTPServer.User: config.HTTPServer.Password,
 		}))
 
-		r.Post("/", save.New(log, storage))
+		r.Post("/", save.New(log, urlService))
 		r.Put("/", update.New(log, storage))
 		r.Delete("/{alias}", delete.New(log, storage))
 	})

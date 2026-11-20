@@ -5,6 +5,8 @@
 package mocks
 
 import (
+	context "context"
+
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -45,25 +47,25 @@ func (_m *SaveUrl) EXPECT() *SaveUrl_Expecter {
 }
 
 // SaveUrl provides a mock function for the type SaveUrl
-func (_mock *SaveUrl) SaveUrl(urlToSave string, alias string) (int64, error) {
-	ret := _mock.Called(urlToSave, alias)
+func (_mock *SaveUrl) SaveUrl(ctx context.Context, url string, alias string) (string, error) {
+	ret := _mock.Called(ctx, url, alias)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SaveUrl")
 	}
 
-	var r0 int64
+	var r0 string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(string, string) (int64, error)); ok {
-		return returnFunc(urlToSave, alias)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) (string, error)); ok {
+		return returnFunc(ctx, url, alias)
 	}
-	if returnFunc, ok := ret.Get(0).(func(string, string) int64); ok {
-		r0 = returnFunc(urlToSave, alias)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string) string); ok {
+		r0 = returnFunc(ctx, url, alias)
 	} else {
-		r0 = ret.Get(0).(int64)
+		r0 = ret.Get(0).(string)
 	}
-	if returnFunc, ok := ret.Get(1).(func(string, string) error); ok {
-		r1 = returnFunc(urlToSave, alias)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string) error); ok {
+		r1 = returnFunc(ctx, url, alias)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -76,36 +78,42 @@ type SaveUrl_SaveUrl_Call struct {
 }
 
 // SaveUrl is a helper method to define mock.On call
-//   - urlToSave string
+//   - ctx context.Context
+//   - url string
 //   - alias string
-func (_e *SaveUrl_Expecter) SaveUrl(urlToSave any, alias any) *SaveUrl_SaveUrl_Call {
-	return &SaveUrl_SaveUrl_Call{Call: _e.mock.On("SaveUrl", urlToSave, alias)}
+func (_e *SaveUrl_Expecter) SaveUrl(ctx any, url any, alias any) *SaveUrl_SaveUrl_Call {
+	return &SaveUrl_SaveUrl_Call{Call: _e.mock.On("SaveUrl", ctx, url, alias)}
 }
 
-func (_c *SaveUrl_SaveUrl_Call) Run(run func(urlToSave string, alias string)) *SaveUrl_SaveUrl_Call {
+func (_c *SaveUrl_SaveUrl_Call) Run(run func(ctx context.Context, url string, alias string)) *SaveUrl_SaveUrl_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 string
+		var arg0 context.Context
 		if args[0] != nil {
-			arg0 = args[0].(string)
+			arg0 = args[0].(context.Context)
 		}
 		var arg1 string
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
 		run(
 			arg0,
 			arg1,
+			arg2,
 		)
 	})
 	return _c
 }
 
-func (_c *SaveUrl_SaveUrl_Call) Return(n int64, err error) *SaveUrl_SaveUrl_Call {
-	_c.Call.Return(n, err)
+func (_c *SaveUrl_SaveUrl_Call) Return(s string, err error) *SaveUrl_SaveUrl_Call {
+	_c.Call.Return(s, err)
 	return _c
 }
 
-func (_c *SaveUrl_SaveUrl_Call) RunAndReturn(run func(urlToSave string, alias string) (int64, error)) *SaveUrl_SaveUrl_Call {
+func (_c *SaveUrl_SaveUrl_Call) RunAndReturn(run func(ctx context.Context, url string, alias string) (string, error)) *SaveUrl_SaveUrl_Call {
 	_c.Call.Return(run)
 	return _c
 }

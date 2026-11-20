@@ -1,21 +1,21 @@
 package save
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
+
 	resp "url-shortener/internal/lib/api/response"
 	"url-shortener/internal/lib/logger/sl"
-	"url-shortener/internal/lib/random"
-	"url-shortener/internal/storage"
+	"url-shortener/internal/service"
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
-	"github.com/go-playground/validator/v10"
 )
 
 type Request struct {
-	URL   string `json:"url" validate:"required,url"`
+	URL   string `json:"url"`
 	Alias string `json:"alias,omitempty"`
 }
 
@@ -24,12 +24,9 @@ type Response struct {
 	Alias string `json:"alias,omitempty"`
 }
 
-// TODO: move to config
-const aliasLength = 6
-
 //go:generate go run github.com/vektra/mockery/v3@v3.9.1
 type SaveUrl interface {
-	SaveUrl(urlToSave string, alias string) (int64, error)
+	SaveUrl(ctx context.Context, url, alias string) (string, error)
 }
 
 func New(log *slog.Logger, urlSaver SaveUrl) http.HandlerFunc {
@@ -52,32 +49,26 @@ func New(log *slog.Logger, urlSaver SaveUrl) http.HandlerFunc {
 
 		log.Info("Request body decoded", slog.Any("request", req))
 
-		if err := validator.New().Struct(req); err != nil {
-			validateErr := err.(validator.ValidationErrors)
-			log.Error("Invalid request", sl.Err(err))
-			render.JSON(w, r, resp.ValidationError(validateErr))
-			return
-		}
-
-		alias := req.Alias
-		if alias == "" {
-			alias = random.NewRandomString(aliasLength)
-		}
-
-		id, err := urlSaver.SaveUrl(req.URL, alias)
-		if errors.Is(err, storage.ErrUrlExists) {
-			log.Info("URL already exists", slog.String("url", req.URL))
-			render.JSON(w, r, resp.Error("url already exists"))
-			return
-		}
-
+		alias, err := urlSaver.SaveUrl(r.Context(), req.URL, req.Alias)
 		if err != nil {
-			log.Error("Failed to add url", sl.Err(err))
-			render.JSON(w, r, resp.Error("failed to add url"))
+			switch {
+			case errors.Is(err, service.ErrEmptyURL):
+				log.Error("Invalid request", sl.Err(err))
+				render.JSON(w, r, resp.Error("Field URL is a required field"))
+			case errors.Is(err, service.ErrInvalidURL):
+				log.Error("Invalid request", sl.Err(err))
+				render.JSON(w, r, resp.Error("Field URL is not a valid URL"))
+			case errors.Is(err, service.ErrURLExists):
+				log.Info("URL already exists", slog.String("url", req.URL))
+				render.JSON(w, r, resp.Error("URL already exists"))
+			default:
+				log.Error("Failed to add URL", sl.Err(err))
+				render.JSON(w, r, resp.Error("Failed to add URL"))
+			}
 			return
 		}
 
-		log.Info("URL added", slog.Int64("id", id))
+		log.Info("URL added", slog.String("alias", alias))
 
 		responseOK(w, r, alias)
 	}

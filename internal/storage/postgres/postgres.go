@@ -7,8 +7,11 @@ import (
 	"url-shortener/internal/storage"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+const uniqueViolation = "23505"
 
 type Storage struct {
 	db *pgxpool.Pool
@@ -40,20 +43,23 @@ func New(storagePath string) (*Storage, error) {
 	return &Storage{db: db}, nil
 }
 
-func (s *Storage) SaveUrl(urlToSave string, alias string) (int64, error) {
-	const fn = "storage.postgres.SaveURL"
+func (s *Storage) SaveUrl(ctx context.Context, urlToSave string, alias string) (int64, error) {
+	const fn = "storage.postgres.SaveUrl"
 
 	var id int64
 	err := s.db.QueryRow(
-		context.Background(),
+		ctx,
 		`INSERT INTO url(alias, url) VALUES($1, $2)
-		ON CONFLICT (alias) DO UPDATE SET url = EXCLUDED.url
 		RETURNING id`,
 		alias,
 		urlToSave,
 	).Scan(&id)
 
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == uniqueViolation {
+			return 0, fmt.Errorf("%s: %w", fn, storage.ErrUrlExists)
+		}
 		return 0, fmt.Errorf("%s: %w", fn, err)
 	}
 
@@ -61,7 +67,7 @@ func (s *Storage) SaveUrl(urlToSave string, alias string) (int64, error) {
 }
 
 func (s *Storage) GetUrl(alias string) (string, error) {
-	const fn = "storage.postgres.GetURL"
+	const fn = "storage.postgres.GetUrl"
 
 	var url string
 	err := s.db.QueryRow(
