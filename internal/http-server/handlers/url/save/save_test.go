@@ -26,18 +26,21 @@ func TestSaveHandler(t *testing.T) {
 		respError string
 		respAlias string
 		mockError error
+		status    int
 	}{
 		{
 			name:      "Success",
 			alias:     "test_alias",
 			url:       "https://google.com",
 			respAlias: "test_alias",
+			status:    http.StatusCreated,
 		},
 		{
 			name:      "Empty alias",
 			alias:     "",
 			url:       "https://google.com",
 			respAlias: "abc123",
+			status:    http.StatusCreated,
 		},
 		{
 			name:      "Empty URL",
@@ -45,6 +48,7 @@ func TestSaveHandler(t *testing.T) {
 			alias:     "some_alias",
 			respError: "Field URL is a required field",
 			mockError: service.ErrEmptyURL,
+			status:    http.StatusBadRequest,
 		},
 		{
 			name:      "Invalid URL",
@@ -52,6 +56,7 @@ func TestSaveHandler(t *testing.T) {
 			alias:     "some_alias",
 			respError: "Field URL is not a valid URL",
 			mockError: service.ErrInvalidURL,
+			status:    http.StatusBadRequest,
 		},
 		{
 			name:      "Alias already exists",
@@ -59,6 +64,7 @@ func TestSaveHandler(t *testing.T) {
 			url:       "https://google.com",
 			respError: "URL already exists",
 			mockError: service.ErrURLExists,
+			status:    http.StatusConflict,
 		},
 		{
 			name:      "SaveURL Error",
@@ -66,6 +72,7 @@ func TestSaveHandler(t *testing.T) {
 			url:       "https://google.com",
 			respError: "Failed to add URL",
 			mockError: errors.New("unexpected error"),
+			status:    http.StatusInternalServerError,
 		},
 	}
 
@@ -88,7 +95,7 @@ func TestSaveHandler(t *testing.T) {
 			rr := httptest.NewRecorder()
 			handler.ServeHTTP(rr, req)
 
-			require.Equal(t, http.StatusOK, rr.Code)
+			require.Equal(t, tc.status, rr.Code)
 
 			var resp save.Response
 			require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))

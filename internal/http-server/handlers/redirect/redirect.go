@@ -36,12 +36,15 @@ func New(log *slog.Logger, urlGetter GetUrl) http.HandlerFunc {
 			switch {
 			case errors.Is(err, service.ErrEmptyAlias):
 				log.Error("Invalid request", sl.Err(err))
+				render.Status(r, http.StatusBadRequest)
 				render.JSON(w, r, resp.Error("Field alias is a required field"))
 			case errors.Is(err, service.ErrURLNotFound):
 				log.Info("URL not found", slog.String("alias", alias))
+				render.Status(r, http.StatusNotFound)
 				render.JSON(w, r, resp.Error("URL not found"))
 			default:
 				log.Error("Failed to get URL", slog.String("alias", alias), sl.Err(err))
+				render.Status(r, http.StatusInternalServerError)
 				render.JSON(w, r, resp.Error("Failed to get URL"))
 			}
 			return

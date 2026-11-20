@@ -41,6 +41,7 @@ func New(log *slog.Logger, urlUpdater UpdateUrl) http.HandlerFunc {
 		err := render.DecodeJSON(r.Body, &request)
 		if err != nil {
 			log.Error("Failed to decode request body", sl.Err(err))
+			render.Status(r, http.StatusBadRequest)
 			render.JSON(w, r, resp.Error("Failed to decode request body"))
 			return
 		}
@@ -52,18 +53,23 @@ func New(log *slog.Logger, urlUpdater UpdateUrl) http.HandlerFunc {
 			switch {
 			case errors.Is(err, service.ErrEmptyAlias):
 				log.Error("Invalid request", sl.Err(err))
+				render.Status(r, http.StatusBadRequest)
 				render.JSON(w, r, resp.Error("Field alias is a required field"))
 			case errors.Is(err, service.ErrEmptyURL):
 				log.Error("Invalid request", sl.Err(err))
+				render.Status(r, http.StatusBadRequest)
 				render.JSON(w, r, resp.Error("Field URL is a required field"))
 			case errors.Is(err, service.ErrInvalidURL):
 				log.Error("Invalid request", sl.Err(err))
+				render.Status(r, http.StatusBadRequest)
 				render.JSON(w, r, resp.Error("Field URL is not a valid URL"))
 			case errors.Is(err, service.ErrURLNotFound):
 				log.Info("URL not found", slog.String("alias", request.Alias))
+				render.Status(r, http.StatusNotFound)
 				render.JSON(w, r, resp.Error("URL not found"))
 			default:
 				log.Error("Failed to update URL", slog.String("alias", request.Alias), sl.Err(err))
+				render.Status(r, http.StatusInternalServerError)
 				render.JSON(w, r, resp.Error("Failed to update URL"))
 			}
 			return
@@ -76,6 +82,7 @@ func New(log *slog.Logger, urlUpdater UpdateUrl) http.HandlerFunc {
 }
 
 func responseOK(w http.ResponseWriter, r *http.Request, countUpdated int64) {
+	render.Status(r, http.StatusOK)
 	render.JSON(w, r, Response{
 		Response:     resp.OK(),
 		CountUpdated: countUpdated,
