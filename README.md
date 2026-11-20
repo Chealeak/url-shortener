@@ -12,7 +12,7 @@ You need Docker and Docker Compose.
 cp .env.example .env
 ```
 
-Fill in the values in `.env`. `APP_ENV` selects the config file `config/<APP_ENV>.yaml`. The repository includes `local` and `prod`.
+Open `.env` and replace every `CHANGE_ME`: database user, password, and name, plus the Basic Auth user and password. Leave `APP_ENV=local` unless you add another file under `config/`. `.env` is git-ignored, so the real values stay local.
 
 ```bash
 docker compose up --build
@@ -20,9 +20,9 @@ docker compose up --build
 
 The service listens on `http://localhost:8082`. Postgres is exposed on `localhost:5432`.
 
-The Basic Auth username comes from `http_server.user` in the YAML config (`admin` in `config/local.yaml`). The password comes from `HTTP_SERVER_PASSWORD` in `.env`.
+Basic Auth uses `HTTP_SERVER_USER` and `HTTP_SERVER_PASSWORD`. `APP_ENV=local` loads `config/local.yaml`.
 
-The Postgres image applies `POSTGRES_PASSWORD` only when the `pgdata` volume is first created. Changing `POSTGRES_PASSWORD` in an existing volume does not change the database password. To apply a new password to an empty database, run `docker compose down -v` and then `docker compose up --build` again.
+Postgres applies `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` only when the `pgdata` volume is first created. Changing them later does not rename the existing role or database. To start over with an empty database, run `docker compose down -v` and then `docker compose up --build` again.
 
 ## API
 
@@ -33,7 +33,7 @@ Create, update, and delete require Basic Auth. Redirect is public.
 Returns `201 Created`.
 
 ```bash
-curl -u admin:password -X POST http://localhost:8082/url \
+curl -u "$HTTP_SERVER_USER:$HTTP_SERVER_PASSWORD" -X POST http://localhost:8082/url \
   -H 'Content-Type: application/json' \
   -d '{"url":"https://example.com","alias":"ex"}'
 ```
@@ -49,7 +49,7 @@ curl -u admin:password -X POST http://localhost:8082/url \
 Returns `200 OK`.
 
 ```bash
-curl -u admin:password -X PUT http://localhost:8082/url \
+curl -u "$HTTP_SERVER_USER:$HTTP_SERVER_PASSWORD" -X PUT http://localhost:8082/url \
   -H 'Content-Type: application/json' \
   -d '{"alias":"ex","url":"https://example.org"}'
 ```
@@ -59,7 +59,7 @@ curl -u admin:password -X PUT http://localhost:8082/url \
 Returns `200 OK`.
 
 ```bash
-curl -u admin:password -X DELETE http://localhost:8082/url/ex
+curl -u "$HTTP_SERVER_USER:$HTTP_SERVER_PASSWORD" -X DELETE http://localhost:8082/url/ex
 ```
 
 ### `GET /{alias}` — redirect
@@ -98,4 +98,4 @@ The end-to-end tests in `tests/` call `localhost:8082`. Start the application be
 go test ./tests/
 ```
 
-They read the password from `.env` and the username from the same YAML config as the service.
+They read `HTTP_SERVER_USER` and `HTTP_SERVER_PASSWORD` from the same `.env` as the service.
