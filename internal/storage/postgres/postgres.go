@@ -30,7 +30,7 @@ func New(storagePath string) (*Storage, error) {
 			url TEXT NOT NULL
 			created_at TIMESTAMP DEFAULT NOW()
 		);
-		CREATE INDEX IF NOT EXISTS idx_alias ON url(alias);`
+		CREATE INDEX IF NOT EXISTS idx_alias ON url(alias);`,
 	)
 
 	if err != nil {
@@ -72,7 +72,7 @@ func (s *Storage) GetUrl(alias string) (string, error) {
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return "", storage.ErrURLNotFound
+			return "", storage.ErrUrlNotFound
 		}
 		return "", fmt.Errorf("%s: execute statement %w", fn, err)
 	}
@@ -117,7 +117,7 @@ func (s *Storage) DeleteUrl(alias string) (int64, error) {
 	return rowsAffected, nil
 }
 
-func (s *Storage) Close() err {
+func (s *Storage) Close() error {
 	s.db.Close()
 	return nil
 }

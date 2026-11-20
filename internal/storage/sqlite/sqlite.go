@@ -54,7 +54,7 @@ func (s *Storage) SaveURL(urlToSave string, alias string) (int64, error) {
 	if err != nil {
 		// TODO: Refactor this
 		if sqliteErr, ok := err.(sqlite3.Error); ok && sqliteErr.ExtendedCode == sqlite3.ErrConstraintUnique {
-			return 0, fmt.Errorf("%s: %w", fn, storage.ErrURLExists)
+			return 0, fmt.Errorf("%s: %w", fn, storage.ErrUrlExists)
 		}
 
 		return 0, fmt.Errorf("%s: %w", fn, err)
@@ -80,7 +80,7 @@ func (s *Storage) GetURL(alias string) (string, error) {
 	err = stmt.QueryRow(alias).Scan(&resURL)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return "", storage.ErrURLNotFound
+			return "", storage.ErrUrlNotFound
 		}
 		return "", fmt.Errorf("%s: execute statement %w", fn, err)
 	}

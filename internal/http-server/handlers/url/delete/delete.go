@@ -44,7 +44,7 @@ func New(log *slog.Logger, urlRemover DeleteUrl) http.HandlerFunc {
 		}
 
 		countDeleted, err := urlRemover.DeleteUrl(alias)
-		if errors.Is(err, storage.ErrURLNotFound) {
+		if errors.Is(err, storage.ErrUrlNotFound) {
 			log.Info("URL not found", "alias", alias)
 			render.JSON(w, r, resp.Error("internal error"))
 			return

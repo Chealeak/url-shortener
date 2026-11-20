@@ -31,7 +31,7 @@ func TestSaveHandler(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			urlGetterMock := mocks.NewURLGetter(t)
+			urlGetterMock := mocks.NewGetUrl(t)
 
 			if tc.respError == "" || tc.mockError != nil {
 				urlGetterMock.On("GetURL", tc.alias).
