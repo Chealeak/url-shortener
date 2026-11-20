@@ -5,18 +5,15 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+
 	resp "url-shortener/internal/lib/api/response"
-	"url-shortener/internal/storage"
+	"url-shortener/internal/lib/logger/sl"
+	"url-shortener/internal/service"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
 )
-
-type Request struct {
-	URL   string `json:"url" validate:"required,url"`
-	Alias string `json:"alias,omitempty"`
-}
 
 type Response struct {
 	resp.Response
@@ -38,25 +35,24 @@ func New(log *slog.Logger, urlRemover DeleteUrl) http.HandlerFunc {
 		)
 
 		alias := chi.URLParam(r, "alias")
-		if alias == "" {
-			log.Error("Empty alias")
-			render.JSON(w, r, resp.Error("invalid request"))
-			return
-		}
 
 		countDeleted, err := urlRemover.DeleteUrl(r.Context(), alias)
-		if errors.Is(err, storage.ErrUrlNotFound) {
-			log.Info("URL not found", "alias", alias)
-			render.JSON(w, r, resp.Error("internal error"))
-			return
-		}
 		if err != nil {
-			log.Error("Failed to get url", "alias", alias)
-			render.JSON(w, r, resp.Error("failed to get url"))
+			switch {
+			case errors.Is(err, service.ErrEmptyAlias):
+				log.Error("Invalid request", sl.Err(err))
+				render.JSON(w, r, resp.Error("Field alias is a required field"))
+			case errors.Is(err, service.ErrURLNotFound):
+				log.Info("URL not found", slog.String("alias", alias))
+				render.JSON(w, r, resp.Error("URL not found"))
+			default:
+				log.Error("Failed to delete URL", slog.String("alias", alias), sl.Err(err))
+				render.JSON(w, r, resp.Error("Failed to delete URL"))
+			}
 			return
 		}
 
-		log.Info("deleted url", slog.String("alias", alias), slog.Int64("count_deleted", countDeleted))
+		log.Info("URL deleted", slog.String("alias", alias), slog.Int64("count_deleted", countDeleted))
 
 		responseOK(w, r, countDeleted)
 	}

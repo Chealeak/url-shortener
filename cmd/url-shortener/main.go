@@ -55,10 +55,10 @@ func main() {
 
 		r.Post("/", save.New(log, urlService))
 		r.Put("/", update.New(log, urlService))
-		r.Delete("/{alias}", delete.New(log, storage))
+		r.Delete("/{alias}", delete.New(log, urlService))
 	})
 
-	router.Get("/{alias}", redirect.New(log, storage))
+	router.Get("/{alias}", redirect.New(log, urlService))
 
 	log.Info("Starting server", slog.String("address", config.Address))
 

@@ -23,6 +23,39 @@ type fakeStorage struct {
 	errs  []error
 }
 
+func (f *fakeStorage) GetUrl(ctx context.Context, alias string) (string, error) {
+	const foundURL = "https://example.com"
+	f.calls = append(f.calls, savedURL{ctx: ctx, url: foundURL, alias: alias})
+
+	if len(f.errs) == 0 {
+		return foundURL, nil
+	}
+
+	err := f.errs[0]
+	f.errs = f.errs[1:]
+	if err != nil {
+		return "", err
+	}
+
+	return foundURL, nil
+}
+
+func (f *fakeStorage) DeleteUrl(ctx context.Context, alias string) (int64, error) {
+	f.calls = append(f.calls, savedURL{ctx: ctx, alias: alias})
+
+	if len(f.errs) == 0 {
+		return 1, nil
+	}
+
+	err := f.errs[0]
+	f.errs = f.errs[1:]
+	if err != nil {
+		return 0, err
+	}
+
+	return 1, nil
+}
+
 func (f *fakeStorage) UpdateUrl(ctx context.Context, alias string, newUrl string) (int64, error) {
 	f.calls = append(f.calls, savedURL{ctx: ctx, url: newUrl, alias: alias})
 
@@ -106,6 +139,112 @@ func TestUpdateUrl(t *testing.T) {
 			svc := service.New(store)
 
 			count, err := svc.UpdateUrl(ctx, tt.alias, tt.url)
+
+			if tt.wantErr != nil {
+				require.EqualError(t, err, tt.wantErr.Error())
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tt.wantCount, count)
+			}
+
+			require.Len(t, store.calls, tt.wantCalls)
+		})
+	}
+}
+
+func TestGetUrl(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	tests := []struct {
+		name       string
+		alias      string
+		storageErr []error
+		wantErr    error
+		wantURL    string
+		wantCalls  int
+	}{
+		{
+			name:    "empty alias",
+			wantErr: service.ErrEmptyAlias,
+		},
+		{
+			name:      "returns url",
+			alias:     "google",
+			wantURL:   "https://example.com",
+			wantCalls: 1,
+		},
+		{
+			name:       "alias not found",
+			alias:      "missing",
+			storageErr: []error{fmt.Errorf("select: %w", storage.ErrUrlNotFound)},
+			wantErr:    service.ErrURLNotFound,
+			wantCalls:  1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			store := &fakeStorage{errs: tt.storageErr}
+			svc := service.New(store)
+
+			got, err := svc.GetUrl(ctx, tt.alias)
+
+			if tt.wantErr != nil {
+				require.EqualError(t, err, tt.wantErr.Error())
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tt.wantURL, got)
+			}
+
+			require.Len(t, store.calls, tt.wantCalls)
+		})
+	}
+}
+
+func TestDeleteUrl(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	tests := []struct {
+		name       string
+		alias      string
+		storageErr []error
+		wantErr    error
+		wantCount  int64
+		wantCalls  int
+	}{
+		{
+			name:    "empty alias",
+			wantErr: service.ErrEmptyAlias,
+		},
+		{
+			name:      "deletes url",
+			alias:     "google",
+			wantCount: 1,
+			wantCalls: 1,
+		},
+		{
+			name:       "alias not found",
+			alias:      "missing",
+			storageErr: []error{fmt.Errorf("delete: %w", storage.ErrUrlNotFound)},
+			wantErr:    service.ErrURLNotFound,
+			wantCalls:  1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			store := &fakeStorage{errs: tt.storageErr}
+			svc := service.New(store)
+
+			count, err := svc.DeleteUrl(ctx, tt.alias)
 
 			if tt.wantErr != nil {
 				require.EqualError(t, err, tt.wantErr.Error())

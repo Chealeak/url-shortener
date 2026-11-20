@@ -25,7 +25,9 @@ var (
 
 type Storage interface {
 	SaveUrl(ctx context.Context, urlToSave string, alias string) (int64, error)
+	GetUrl(ctx context.Context, alias string) (string, error)
 	UpdateUrl(ctx context.Context, alias string, newUrl string) (int64, error)
+	DeleteUrl(ctx context.Context, alias string) (int64, error)
 }
 
 type Service struct {
@@ -99,6 +101,38 @@ func (s *Service) UpdateUrl(ctx context.Context, alias string, newUrl string) (i
 			return 0, ErrURLNotFound
 		}
 		return 0, fmt.Errorf("update url: %w", err)
+	}
+
+	return count, nil
+}
+
+func (s *Service) GetUrl(ctx context.Context, alias string) (string, error) {
+	if alias == "" {
+		return "", ErrEmptyAlias
+	}
+
+	rawURL, err := s.storage.GetUrl(ctx, alias)
+	if err != nil {
+		if errors.Is(err, storage.ErrUrlNotFound) {
+			return "", ErrURLNotFound
+		}
+		return "", fmt.Errorf("get url: %w", err)
+	}
+
+	return rawURL, nil
+}
+
+func (s *Service) DeleteUrl(ctx context.Context, alias string) (int64, error) {
+	if alias == "" {
+		return 0, ErrEmptyAlias
+	}
+
+	count, err := s.storage.DeleteUrl(ctx, alias)
+	if err != nil {
+		if errors.Is(err, storage.ErrUrlNotFound) {
+			return 0, ErrURLNotFound
+		}
+		return 0, fmt.Errorf("delete url: %w", err)
 	}
 
 	return count, nil

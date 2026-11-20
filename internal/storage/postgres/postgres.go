@@ -118,10 +118,13 @@ func (s *Storage) DeleteUrl(ctx context.Context, alias string) (int64, error) {
 	)
 
 	if err != nil {
-		return 0, fmt.Errorf("%s: execute statement %w", fn, err)
+		return 0, fmt.Errorf("%s: %w", fn, err)
 	}
 
 	rowsAffected := result.RowsAffected()
+	if rowsAffected == 0 {
+		return 0, fmt.Errorf("%s: %w", fn, storage.ErrUrlNotFound)
+	}
 
 	return rowsAffected, nil
 }

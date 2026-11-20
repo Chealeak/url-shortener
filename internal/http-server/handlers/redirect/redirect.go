@@ -7,7 +7,8 @@ import (
 	"net/http"
 
 	resp "url-shortener/internal/lib/api/response"
-	"url-shortener/internal/storage"
+	"url-shortener/internal/lib/logger/sl"
+	"url-shortener/internal/service"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -29,21 +30,20 @@ func New(log *slog.Logger, urlGetter GetUrl) http.HandlerFunc {
 		)
 
 		alias := chi.URLParam(r, "alias")
-		if alias == "" {
-			log.Error("empty alias")
-			render.JSON(w, r, resp.Error("invalid request"))
-			return
-		}
 
 		url, err := urlGetter.GetUrl(r.Context(), alias)
-		if errors.Is(err, storage.ErrUrlNotFound) {
-			log.Info("url not found", "alias", alias)
-			render.JSON(w, r, resp.Error("internal error"))
-			return
-		}
 		if err != nil {
-			log.Error("failed to get url", "alias", alias)
-			render.JSON(w, r, resp.Error("failed to get url"))
+			switch {
+			case errors.Is(err, service.ErrEmptyAlias):
+				log.Error("Invalid request", sl.Err(err))
+				render.JSON(w, r, resp.Error("Field alias is a required field"))
+			case errors.Is(err, service.ErrURLNotFound):
+				log.Info("URL not found", slog.String("alias", alias))
+				render.JSON(w, r, resp.Error("URL not found"))
+			default:
+				log.Error("Failed to get URL", slog.String("alias", alias), sl.Err(err))
+				render.JSON(w, r, resp.Error("Failed to get URL"))
+			}
 			return
 		}
 
