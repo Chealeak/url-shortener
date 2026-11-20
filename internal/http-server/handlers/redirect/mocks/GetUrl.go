@@ -5,6 +5,8 @@
 package mocks
 
 import (
+	context "context"
+
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -45,8 +47,8 @@ func (_m *GetUrl) EXPECT() *GetUrl_Expecter {
 }
 
 // GetUrl provides a mock function for the type GetUrl
-func (_mock *GetUrl) GetUrl(alias string) (string, error) {
-	ret := _mock.Called(alias)
+func (_mock *GetUrl) GetUrl(ctx context.Context, alias string) (string, error) {
+	ret := _mock.Called(ctx, alias)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetUrl")
@@ -54,16 +56,16 @@ func (_mock *GetUrl) GetUrl(alias string) (string, error) {
 
 	var r0 string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(string) (string, error)); ok {
-		return returnFunc(alias)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (string, error)); ok {
+		return returnFunc(ctx, alias)
 	}
-	if returnFunc, ok := ret.Get(0).(func(string) string); ok {
-		r0 = returnFunc(alias)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) string); ok {
+		r0 = returnFunc(ctx, alias)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
-	if returnFunc, ok := ret.Get(1).(func(string) error); ok {
-		r1 = returnFunc(alias)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = returnFunc(ctx, alias)
 	} else {
 		r1 = ret.Error(1)
 	}

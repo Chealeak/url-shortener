@@ -66,12 +66,12 @@ func (s *Storage) SaveUrl(ctx context.Context, urlToSave string, alias string) (
 	return id, nil
 }
 
-func (s *Storage) GetUrl(alias string) (string, error) {
+func (s *Storage) GetUrl(ctx context.Context, alias string) (string, error) {
 	const fn = "storage.postgres.GetUrl"
 
 	var url string
 	err := s.db.QueryRow(
-		context.Background(),
+		ctx,
 		"SELECT url FROM url WHERE alias = $1",
 		alias,
 	).Scan(&url)
@@ -86,30 +86,33 @@ func (s *Storage) GetUrl(alias string) (string, error) {
 	return url, nil
 }
 
-func (s *Storage) UpdateUrl(alias string, newUrl string) (int64, error) {
+func (s *Storage) UpdateUrl(ctx context.Context, alias string, newUrl string) (int64, error) {
 	const fn = "storage.postgres.UpdateURL"
 
 	result, err := s.db.Exec(
-		context.Background(),
-		"UPDATE url SET alias = $1 WHERE alias = $2",
+		ctx,
+		"UPDATE url SET url = $1 WHERE alias = $2",
 		newUrl,
 		alias,
 	)
 
 	if err != nil {
-		return 0, fmt.Errorf("%s: execute statement %w", fn, err)
+		return 0, fmt.Errorf("%s: %w", fn, err)
 	}
 
 	rowsAffected := result.RowsAffected()
+	if rowsAffected == 0 {
+		return 0, fmt.Errorf("%s: %w", fn, storage.ErrUrlNotFound)
+	}
 
 	return rowsAffected, nil
 }
 
-func (s *Storage) DeleteUrl(alias string) (int64, error) {
+func (s *Storage) DeleteUrl(ctx context.Context, alias string) (int64, error) {
 	const fn = "storage.postgres.DeleteURL"
 
 	result, err := s.db.Exec(
-		context.Background(),
+		ctx,
 		"DELETE FROM url WHERE alias = $1",
 		alias,
 	)

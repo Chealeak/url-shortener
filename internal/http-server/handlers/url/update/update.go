@@ -1,21 +1,22 @@
 package update
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
+
 	resp "url-shortener/internal/lib/api/response"
 	"url-shortener/internal/lib/logger/sl"
-	"url-shortener/internal/storage"
+	"url-shortener/internal/service"
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
-	"github.com/go-playground/validator/v10"
 )
 
 type Request struct {
-	Alias  string `json:"alias" validate:"required"`
-	NewUrl string `json:"url" validate:"required,url"`
+	Alias  string `json:"alias"`
+	NewUrl string `json:"url"`
 }
 
 type Response struct {
@@ -24,7 +25,7 @@ type Response struct {
 }
 
 type UpdateUrl interface {
-	UpdateUrl(alias string, newUrl string) (int64, error)
+	UpdateUrl(ctx context.Context, alias string, newUrl string) (int64, error)
 }
 
 func New(log *slog.Logger, urlUpdater UpdateUrl) http.HandlerFunc {
@@ -40,34 +41,35 @@ func New(log *slog.Logger, urlUpdater UpdateUrl) http.HandlerFunc {
 		err := render.DecodeJSON(r.Body, &request)
 		if err != nil {
 			log.Error("Failed to decode request body", sl.Err(err))
+			render.JSON(w, r, resp.Error("Failed to decode request body"))
+			return
 		}
 
 		log.Info("Request body decoded", slog.Any("request", request))
 
-		if err := validator.New().Struct(request); err != nil {
-			validateErr := err.(validator.ValidationErrors)
-			log.Error("Invalid request", sl.Err(err))
-			render.JSON(w, r, resp.ValidationError(validateErr))
-			return
-		}
-
-		alias := request.Alias
-		newUrl := request.NewUrl
-
-		countUpdated, err := urlUpdater.UpdateUrl(alias, newUrl)
-		if errors.Is(err, storage.ErrUrlNotFound) {
-			log.Info("URL not found", "alias", alias)
-			render.JSON(w, r, resp.Error("url already exists"))
-			return
-		}
-
+		countUpdated, err := urlUpdater.UpdateUrl(r.Context(), request.Alias, request.NewUrl)
 		if err != nil {
-			log.Error("Failed to update url", "alias", alias, sl.Err(err))
-			render.JSON(w, r, resp.Error("Failed to update url"))
+			switch {
+			case errors.Is(err, service.ErrEmptyAlias):
+				log.Error("Invalid request", sl.Err(err))
+				render.JSON(w, r, resp.Error("Field alias is a required field"))
+			case errors.Is(err, service.ErrEmptyURL):
+				log.Error("Invalid request", sl.Err(err))
+				render.JSON(w, r, resp.Error("Field URL is a required field"))
+			case errors.Is(err, service.ErrInvalidURL):
+				log.Error("Invalid request", sl.Err(err))
+				render.JSON(w, r, resp.Error("Field URL is not a valid URL"))
+			case errors.Is(err, service.ErrURLNotFound):
+				log.Info("URL not found", slog.String("alias", request.Alias))
+				render.JSON(w, r, resp.Error("URL not found"))
+			default:
+				log.Error("Failed to update URL", slog.String("alias", request.Alias), sl.Err(err))
+				render.JSON(w, r, resp.Error("Failed to update URL"))
+			}
 			return
 		}
 
-		log.Info("URL updated", slog.String("alias", alias), slog.Int64("count_updated", countUpdated))
+		log.Info("URL updated", slog.String("alias", request.Alias), slog.Int64("count_updated", countUpdated))
 
 		responseOK(w, r, countUpdated)
 	}

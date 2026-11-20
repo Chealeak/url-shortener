@@ -54,7 +54,7 @@ func main() {
 		}))
 
 		r.Post("/", save.New(log, urlService))
-		r.Put("/", update.New(log, storage))
+		r.Put("/", update.New(log, urlService))
 		r.Delete("/{alias}", delete.New(log, storage))
 	})
 

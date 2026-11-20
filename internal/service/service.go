@@ -16,13 +16,16 @@ const (
 )
 
 var (
-	ErrEmptyURL   = errors.New("empty url")
-	ErrInvalidURL = errors.New("invalid url")
-	ErrURLExists  = errors.New("url exists")
+	ErrEmptyURL    = errors.New("empty url")
+	ErrEmptyAlias  = errors.New("empty alias")
+	ErrInvalidURL  = errors.New("invalid url")
+	ErrURLExists   = errors.New("url exists")
+	ErrURLNotFound = errors.New("url not found")
 )
 
 type Storage interface {
 	SaveUrl(ctx context.Context, urlToSave string, alias string) (int64, error)
+	UpdateUrl(ctx context.Context, alias string, newUrl string) (int64, error)
 }
 
 type Service struct {
@@ -80,4 +83,23 @@ func validateUrl(rawURL string) error {
 	}
 
 	return nil
+}
+
+func (s *Service) UpdateUrl(ctx context.Context, alias string, newUrl string) (int64, error) {
+	if alias == "" {
+		return 0, ErrEmptyAlias
+	}
+	if err := validateUrl(newUrl); err != nil {
+		return 0, err
+	}
+
+	count, err := s.storage.UpdateUrl(ctx, alias, newUrl)
+	if err != nil {
+		if errors.Is(err, storage.ErrUrlNotFound) {
+			return 0, ErrURLNotFound
+		}
+		return 0, fmt.Errorf("update url: %w", err)
+	}
+
+	return count, nil
 }

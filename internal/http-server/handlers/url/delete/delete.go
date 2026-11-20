@@ -1,6 +1,7 @@
 package delete
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -24,7 +25,7 @@ type Response struct {
 
 //go:generate go run github.com/vektra/mockery/v3@v3.9.1
 type DeleteUrl interface {
-	DeleteUrl(alias string) (int64, error)
+	DeleteUrl(ctx context.Context, alias string) (int64, error)
 }
 
 func New(log *slog.Logger, urlRemover DeleteUrl) http.HandlerFunc {
@@ -43,7 +44,7 @@ func New(log *slog.Logger, urlRemover DeleteUrl) http.HandlerFunc {
 			return
 		}
 
-		countDeleted, err := urlRemover.DeleteUrl(alias)
+		countDeleted, err := urlRemover.DeleteUrl(r.Context(), alias)
 		if errors.Is(err, storage.ErrUrlNotFound) {
 			log.Info("URL not found", "alias", alias)
 			render.JSON(w, r, resp.Error("internal error"))

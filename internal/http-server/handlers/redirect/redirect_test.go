@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	"url-shortener/internal/http-server/handlers/redirect"
@@ -34,7 +35,7 @@ func TestSaveHandler(t *testing.T) {
 			urlGetterMock := mocks.NewGetUrl(t)
 
 			if tc.respError == "" || tc.mockError != nil {
-				urlGetterMock.On("GetURL", tc.alias).
+				urlGetterMock.On("GetUrl", mock.Anything, tc.alias).
 					Return(tc.url, tc.mockError).Once()
 			}
 
