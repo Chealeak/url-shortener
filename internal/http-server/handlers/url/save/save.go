@@ -61,6 +61,10 @@ func New(log *slog.Logger, urlSaver SaveUrl) http.HandlerFunc {
 				reqLog.Error("Invalid request", sl.Err(err))
 				render.Status(r, http.StatusBadRequest)
 				render.JSON(w, r, resp.Error("Field URL is not a valid URL"))
+			case errors.Is(err, service.ErrInvalidAlias):
+				reqLog.Error("Invalid request", sl.Err(err))
+				render.Status(r, http.StatusBadRequest)
+				render.JSON(w, r, resp.Error("Field alias must contain only letters, digits, '-' and '_' (up to 32 characters)"))
 			case errors.Is(err, service.ErrURLExists):
 				reqLog.Info("URL already exists", slog.String("url", req.URL))
 				render.Status(r, http.StatusConflict)

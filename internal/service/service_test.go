@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -286,10 +287,60 @@ func TestSaveUrl(t *testing.T) {
 			wantErr: service.ErrInvalidURL,
 		},
 		{
+			name:    "alias with slash",
+			url:     "https://google.com",
+			alias:   "test/example",
+			wantErr: service.ErrInvalidAlias,
+		},
+		{
+			name:    "alias with dot",
+			url:     "https://google.com",
+			alias:   "test.json",
+			wantErr: service.ErrInvalidAlias,
+		},
+		{
+			name:    "alias with space",
+			url:     "https://google.com",
+			alias:   "test example",
+			wantErr: service.ErrInvalidAlias,
+		},
+		{
+			name:    "alias with non-ascii characters",
+			url:     "https://google.com",
+			alias:   "тест",
+			wantErr: service.ErrInvalidAlias,
+		},
+		{
+			name:    "alias with trailing newline",
+			url:     "https://google.com",
+			alias:   "test\n",
+			wantErr: service.ErrInvalidAlias,
+		},
+		{
+			name:    "alias is too long",
+			url:     "https://google.com",
+			alias:   strings.Repeat("a", 33),
+			wantErr: service.ErrInvalidAlias,
+		},
+		{
 			name:      "saves provided alias",
 			url:       "https://google.com",
 			alias:     "google",
 			wantAlias: "google",
+			wantCalls: 1,
+		},
+		{
+			name:      "saves alias with dash and underscore",
+			url:       "https://google.com",
+			alias:     "my-test_Alias1",
+			wantAlias: "my-test_Alias1",
+			wantCalls: 1,
+		},
+		{
+			name:      "saves alias of max length",
+			url:       "https://google.com",
+			alias:     strings.Repeat("a", 32),
+			wantAlias: strings.Repeat("a", 32),
 			wantCalls: 1,
 		},
 		{

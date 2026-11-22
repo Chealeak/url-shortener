@@ -42,6 +42,20 @@ func TestSave_BadRequest(t *testing.T) {
 	require.Empty(t, resp.Alias)
 }
 
+func TestSave_InvalidAlias(t *testing.T) {
+	urlSaverMock := mocks.NewSaveUrl(t)
+	urlSaverMock.On("SaveUrl", mock.Anything, "https://google.com", "test/example").
+		Return("", service.ErrInvalidAlias).
+		Once()
+
+	rr := callSave(t, urlSaverMock, `{"url":"https://google.com","alias":"test/example"}`)
+
+	require.Equal(t, http.StatusBadRequest, rr.Code)
+	resp := decodeSave(t, rr)
+	require.Equal(t, "Field alias must contain only letters, digits, '-' and '_' (up to 32 characters)", resp.Error)
+	require.Empty(t, resp.Alias)
+}
+
 func TestSave_Conflict(t *testing.T) {
 	urlSaverMock := mocks.NewSaveUrl(t)
 	urlSaverMock.On("SaveUrl", mock.Anything, "https://google.com", "test_alias").

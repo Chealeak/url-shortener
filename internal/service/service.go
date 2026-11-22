@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"regexp"
 
 	"url-shortener/internal/lib/random"
 	"url-shortener/internal/storage"
@@ -13,13 +14,17 @@ import (
 const (
 	aliasLength           = 6
 	aliasGenerateAttempts = 5
+	aliasMaxLength        = 32
 )
 
+var aliasPattern = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
+
 var (
-	ErrEmptyURL    = errors.New("empty url")
-	ErrEmptyAlias  = errors.New("empty alias")
-	ErrInvalidURL  = errors.New("invalid url")
-	ErrURLExists   = errors.New("url exists")
+	ErrEmptyURL      = errors.New("empty url")
+	ErrEmptyAlias    = errors.New("empty alias")
+	ErrInvalidURL    = errors.New("invalid url")
+	ErrInvalidAlias  = errors.New("invalid alias")
+	ErrURLExists     = errors.New("url exists")
 	ErrAliasNotFound = errors.New("alias not found")
 )
 
@@ -44,6 +49,10 @@ func (s *Service) SaveUrl(ctx context.Context, rawUrl, alias string) (string, er
 	}
 
 	if alias != "" {
+		if err := validateAlias(alias); err != nil {
+			return "", err
+		}
+
 		return s.save(ctx, rawUrl, alias)
 	}
 
@@ -82,6 +91,14 @@ func validateUrl(rawURL string) error {
 	}
 	if parsed.Scheme != "http" && parsed.Scheme != "https" {
 		return ErrInvalidURL
+	}
+
+	return nil
+}
+
+func validateAlias(alias string) error {
+	if len(alias) > aliasMaxLength || !aliasPattern.MatchString(alias) {
+		return ErrInvalidAlias
 	}
 
 	return nil
