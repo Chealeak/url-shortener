@@ -32,11 +32,11 @@ func New(storagePath string) (*Storage, error) {
 			alias TEXT NOT NULL UNIQUE,
 			url TEXT NOT NULL,
 			created_at TIMESTAMP DEFAULT NOW()
-		);
-		CREATE INDEX IF NOT EXISTS idx_alias ON url(alias);`,
+		)`,
 	)
 
 	if err != nil {
+		db.Close()
 		return nil, fmt.Errorf("%s: %w", fn, err)
 	}
 
