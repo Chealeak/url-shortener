@@ -129,6 +129,83 @@ func TestDelete_Success(t *testing.T) {
 		Status(http.StatusNotFound)
 }
 
+func TestAuth_MissingCredentials(t *testing.T) {
+	for _, route := range protectedRoutes() {
+		t.Run(route.name, func(t *testing.T) {
+			req := newClient(t).Request(route.method, route.path)
+			if route.body != nil {
+				req = req.WithJSON(route.body)
+			}
+
+			expectUnauthorized(req.Expect())
+		})
+	}
+}
+
+func TestAuth_WrongCredentials(t *testing.T) {
+	user, password := loadAuth(t)
+
+	credentials := []struct {
+		name     string
+		user     string
+		password string
+	}{
+		{name: "wrong password", user: user, password: password + "-wrong"},
+		{name: "wrong user", user: user + "-wrong", password: password},
+	}
+
+	for _, route := range protectedRoutes() {
+		for _, creds := range credentials {
+			t.Run(route.name+"/"+creds.name, func(t *testing.T) {
+				req := newClient(t).Request(route.method, route.path).
+					WithBasicAuth(creds.user, creds.password)
+				if route.body != nil {
+					req = req.WithJSON(route.body)
+				}
+
+				expectUnauthorized(req.Expect())
+			})
+		}
+	}
+}
+
+type protectedRoute struct {
+	name   string
+	method string
+	path   string
+	body   any
+}
+
+func protectedRoutes() []protectedRoute {
+	alias := random.NewRandomString(10)
+
+	return []protectedRoute{
+		{
+			name:   "save",
+			method: http.MethodPost,
+			path:   "/url",
+			body:   save.Request{URL: gofakeit.URL(), Alias: alias},
+		},
+		{
+			name:   "update",
+			method: http.MethodPut,
+			path:   "/url",
+			body:   map[string]string{"alias": alias, "url": gofakeit.URL()},
+		},
+		{
+			name:   "delete",
+			method: http.MethodDelete,
+			path:   "/url/" + alias,
+		},
+	}
+}
+
+func expectUnauthorized(resp *httpexpect.Response) {
+	resp.Status(http.StatusUnauthorized)
+	resp.Header("WWW-Authenticate").IsEqual(`Basic realm="url-shortener"`)
+	resp.Body().IsEmpty()
+}
+
 func newClient(t *testing.T) *httpexpect.Expect {
 	t.Helper()
 

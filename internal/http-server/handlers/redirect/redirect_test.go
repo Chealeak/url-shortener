@@ -2,6 +2,7 @@ package redirect_test
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -48,6 +49,22 @@ func TestRedirect_NotFound(t *testing.T) {
 	var resp response.Response
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
 	require.Equal(t, "Alias not found", resp.Error)
+}
+
+func TestRedirect_InternalError(t *testing.T) {
+	urlGetterMock := mocks.NewGetUrl(t)
+	urlGetterMock.On("GetUrl", mock.Anything, "test_alias").
+		Return("", errors.New("db is down")).
+		Once()
+
+	rr := callRedirect(t, urlGetterMock, "/test_alias")
+
+	require.Equal(t, http.StatusInternalServerError, rr.Code)
+
+	var resp response.Response
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+	require.Equal(t, response.StatusError, resp.Status)
+	require.Equal(t, "Failed to get URL", resp.Error)
 }
 
 func callRedirect(t *testing.T, getter redirect.GetUrl, target string) *httptest.ResponseRecorder {
