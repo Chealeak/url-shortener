@@ -32,7 +32,7 @@ func New(log *slog.Logger, urlUpdater UpdateUrl) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const fn = "handlers.url.update.New"
 
-		log = log.With(
+		reqLog := log.With(
 			slog.String("fn", fn),
 			slog.String("request_id", middleware.GetReqID(r.Context())),
 		)
@@ -40,42 +40,42 @@ func New(log *slog.Logger, urlUpdater UpdateUrl) http.HandlerFunc {
 		var request Request
 		err := render.DecodeJSON(r.Body, &request)
 		if err != nil {
-			log.Error("Failed to decode request body", sl.Err(err))
+			reqLog.Error("Failed to decode request body", sl.Err(err))
 			render.Status(r, http.StatusBadRequest)
 			render.JSON(w, r, resp.Error("Failed to decode request body"))
 			return
 		}
 
-		log.Info("Request body decoded", slog.Any("request", request))
+		reqLog.Info("Request body decoded", slog.Any("request", request))
 
 		countUpdated, err := urlUpdater.UpdateUrl(r.Context(), request.Alias, request.NewUrl)
 		if err != nil {
 			switch {
 			case errors.Is(err, service.ErrEmptyAlias):
-				log.Error("Invalid request", sl.Err(err))
+				reqLog.Error("Invalid request", sl.Err(err))
 				render.Status(r, http.StatusBadRequest)
 				render.JSON(w, r, resp.Error("Field alias is a required field"))
 			case errors.Is(err, service.ErrEmptyURL):
-				log.Error("Invalid request", sl.Err(err))
+				reqLog.Error("Invalid request", sl.Err(err))
 				render.Status(r, http.StatusBadRequest)
 				render.JSON(w, r, resp.Error("Field URL is a required field"))
 			case errors.Is(err, service.ErrInvalidURL):
-				log.Error("Invalid request", sl.Err(err))
+				reqLog.Error("Invalid request", sl.Err(err))
 				render.Status(r, http.StatusBadRequest)
 				render.JSON(w, r, resp.Error("Field URL is not a valid URL"))
 			case errors.Is(err, service.ErrAliasNotFound):
-				log.Info("Alias not found", slog.String("alias", request.Alias))
+				reqLog.Info("Alias not found", slog.String("alias", request.Alias))
 				render.Status(r, http.StatusNotFound)
 				render.JSON(w, r, resp.Error("Alias not found"))
 			default:
-				log.Error("Failed to update URL", slog.String("alias", request.Alias), sl.Err(err))
+				reqLog.Error("Failed to update URL", slog.String("alias", request.Alias), sl.Err(err))
 				render.Status(r, http.StatusInternalServerError)
 				render.JSON(w, r, resp.Error("Failed to update URL"))
 			}
 			return
 		}
 
-		log.Info("URL updated", slog.String("alias", request.Alias), slog.Int64("count_updated", countUpdated))
+		reqLog.Info("URL updated", slog.String("alias", request.Alias), slog.Int64("count_updated", countUpdated))
 
 		responseOK(w, r, countUpdated)
 	}

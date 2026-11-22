@@ -33,7 +33,7 @@ func New(log *slog.Logger, urlSaver SaveUrl) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const fn = "handlers.url.save.New"
 
-		log = log.With(
+		reqLog := log.With(
 			slog.String("fn", fn),
 			slog.String("request_id", middleware.GetReqID(r.Context())),
 		)
@@ -42,38 +42,38 @@ func New(log *slog.Logger, urlSaver SaveUrl) http.HandlerFunc {
 
 		err := render.DecodeJSON(r.Body, &req)
 		if err != nil {
-			log.Error("Failed to decode request body", sl.Err(err))
+			reqLog.Error("Failed to decode request body", sl.Err(err))
 			render.Status(r, http.StatusBadRequest)
 			render.JSON(w, r, resp.Error("Failed to decode request body"))
 			return
 		}
 
-		log.Info("Request body decoded", slog.Any("request", req))
+		reqLog.Info("Request body decoded", slog.Any("request", req))
 
 		alias, err := urlSaver.SaveUrl(r.Context(), req.URL, req.Alias)
 		if err != nil {
 			switch {
 			case errors.Is(err, service.ErrEmptyURL):
-				log.Error("Invalid request", sl.Err(err))
+				reqLog.Error("Invalid request", sl.Err(err))
 				render.Status(r, http.StatusBadRequest)
 				render.JSON(w, r, resp.Error("Field URL is a required field"))
 			case errors.Is(err, service.ErrInvalidURL):
-				log.Error("Invalid request", sl.Err(err))
+				reqLog.Error("Invalid request", sl.Err(err))
 				render.Status(r, http.StatusBadRequest)
 				render.JSON(w, r, resp.Error("Field URL is not a valid URL"))
 			case errors.Is(err, service.ErrURLExists):
-				log.Info("URL already exists", slog.String("url", req.URL))
+				reqLog.Info("URL already exists", slog.String("url", req.URL))
 				render.Status(r, http.StatusConflict)
 				render.JSON(w, r, resp.Error("URL already exists"))
 			default:
-				log.Error("Failed to add URL", sl.Err(err))
+				reqLog.Error("Failed to add URL", sl.Err(err))
 				render.Status(r, http.StatusInternalServerError)
 				render.JSON(w, r, resp.Error("Failed to add URL"))
 			}
 			return
 		}
 
-		log.Info("URL added", slog.String("alias", alias))
+		reqLog.Info("URL added", slog.String("alias", alias))
 
 		responseOK(w, r, alias)
 	}

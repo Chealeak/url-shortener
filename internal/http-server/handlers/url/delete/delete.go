@@ -29,7 +29,7 @@ func New(log *slog.Logger, urlRemover DeleteUrl) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		const fn = "handlers.url.delete.New"
 
-		log = log.With(
+		reqLog := log.With(
 			slog.String("fn", fn),
 			slog.String("request_id", middleware.GetReqID(r.Context())),
 		)
@@ -40,22 +40,22 @@ func New(log *slog.Logger, urlRemover DeleteUrl) http.HandlerFunc {
 		if err != nil {
 			switch {
 			case errors.Is(err, service.ErrEmptyAlias):
-				log.Error("Invalid request", sl.Err(err))
+				reqLog.Error("Invalid request", sl.Err(err))
 				render.Status(r, http.StatusBadRequest)
 				render.JSON(w, r, resp.Error("Field alias is a required field"))
 			case errors.Is(err, service.ErrAliasNotFound):
-				log.Info("Alias not found", slog.String("alias", alias))
+				reqLog.Info("Alias not found", slog.String("alias", alias))
 				render.Status(r, http.StatusNotFound)
 				render.JSON(w, r, resp.Error("Alias not found"))
 			default:
-				log.Error("Failed to delete URL", slog.String("alias", alias), sl.Err(err))
+				reqLog.Error("Failed to delete URL", slog.String("alias", alias), sl.Err(err))
 				render.Status(r, http.StatusInternalServerError)
 				render.JSON(w, r, resp.Error("Failed to delete URL"))
 			}
 			return
 		}
 
-		log.Info("URL deleted", slog.String("alias", alias), slog.Int64("count_deleted", countDeleted))
+		reqLog.Info("URL deleted", slog.String("alias", alias), slog.Int64("count_deleted", countDeleted))
 
 		responseOK(w, r, countDeleted)
 	}
